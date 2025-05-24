@@ -4,7 +4,7 @@ from pinecone import Pinecone
 
 load_dotenv()
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-PINECONE_HOST = os.getenv("PINECONE_HOST")  # e.g., "https://your-index-name-xxxxxx.svc.us-east-1-aws.pinecone.io"
+PINECONE_HOST = os.getenv("PINECONE_HOST")
 PINECONE_NAMESPACE = "default"
 
 def query_pinecone(question, top_k=3):
@@ -17,7 +17,6 @@ def query_pinecone(question, top_k=3):
             "inputs": {"text": question},
             "top_k": top_k
         },
-        # Adjust to match your fields; use "content" if that's your field name
         fields=["title", "url", "type", "content"]
     )
 
