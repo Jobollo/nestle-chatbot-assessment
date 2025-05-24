@@ -1,0 +1,20 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+# Node
+nestle-chatbot-frontend/node_modules/
+
+# PyCharm/IDEA
+.idea/
+*.iml
+
+# Data
+data/raw_pages/*.json
+
+# Logs and temp
+*.log
