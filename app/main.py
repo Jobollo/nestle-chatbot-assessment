@@ -9,7 +9,7 @@ app = FastAPI()
 # Enable CORS for the React frontend (adjust origin as needed)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://nestle-chatbot-frontend.azurestaticapps.net"],
+    allow_origins=["https://salmon-pond-0ce065a0f.6.azurestaticapps.net"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
