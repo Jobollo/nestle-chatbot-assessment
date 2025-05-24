@@ -14,7 +14,7 @@ def ask_openai_with_context(user_question, context_chunks):
         "Your task is to answer user questions using only the information provided in the context below, "
         "which comes from the official site. When possible, include specific recipe names or article titles "
         "and provide the relevant website URL as a reference in your answer. "
-        "If the answer cannot be found in the context, reply with 'I'm sorry, I could not find that information.'\n\n"
+        "If the answer cannot be found in the context, try to clarify what the user is asking or looking for.\n\n"
         f"Context:\n{context_string}\n"
         "Be concise, accurate, and reference the original content where appropriate."
     )
