@@ -1,22 +1,25 @@
 from selenium import webdriver
+from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
 from bs4 import BeautifulSoup
-import selenium.common.exceptions
 import json
 import time
+from pathlib import Path
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import selenium.common.exceptions as se
+
+# Paths to your saved url lists
+REC_ART_URLS_PATH = "../data/raw_pages/recipes_articles_urls.json"
+BRAND_PROD_URLS_PATH = "../data/raw_pages/brand_products.json"
+OUTPUT_PATH = "../data/raw_pages/processed.json"
 
 BASE_URL = "https://www.madewithnestle.ca"
-RECIPE_START_URL = f"{BASE_URL}/recipes"
-ARTICLE_START_URL = f"{BASE_URL}/articles"
 
 def dismiss_cookies(driver):
-    # Try common OneTrust button selectors
     try:
-        # Try the Accept All cookies button (text/cases may vary)
         buttons = driver.find_elements("css selector", "button, a")
         for btn in buttons:
             text = btn.text.strip().lower()
@@ -26,202 +29,17 @@ def dismiss_cookies(driver):
                     print("Cookie banner dismissed.")
                     time.sleep(1.5)
                     return
-        # If not found by text, try OneTrust-specific class
         consent_btn = driver.find_element("id", "onetrust-accept-btn-handler")
         if consent_btn.is_displayed():
             consent_btn.click()
             print("Cookie banner dismissed (OneTrust button).")
             time.sleep(1.5)
-    except selenium.common.exceptions.NoSuchElementException:
-        print("No cookie consent banner found.")
-    except Exception as e:
-        print("Error dismissing cookie banner:", e)
-
-def close_survey_iframe(driver):
-    try:
-        # Wait a moment for iframe to appear
-        time.sleep(1)
-        # Find all iframes
-        iframes = driver.find_elements("tag name", "iframe")
-        for iframe in iframes:
-            # Heuristically: only target big visible iframes with no src or named "survey"
-            if iframe.is_displayed():
-                # Option 1: Try to click the close button inside the iframe
-                driver.switch_to.frame(iframe)
-                try:
-                    # Look for a close button (you may need to adjust selector/text)
-                    close_btns = driver.find_elements("css selector", "button, .close, .close-button, [aria-label='close']")
-                    for btn in close_btns:
-                        if btn.is_displayed() and ("close" in btn.get_attribute("class").lower() or btn.text.strip().lower() in ("close", "×", "no thanks")):
-                            btn.click()
-                            print("Closed survey popup.")
-                            time.sleep(1)
-                            break
-                except Exception:
-                    pass
-                driver.switch_to.default_content()
-                # Option 2: If can't close, hide the iframe
-                driver.execute_script("arguments[0].style.display = 'none';", iframe)
-                print("Survey iframe hidden.")
-    except selenium.common.exceptions.NoSuchElementException:
+    except Exception:
         pass
-    except Exception as e:
-        print("Error handling survey iframe:", e)
-
-def close_qualtrics_survey(driver):
-    try:
-        # Find all visible survey overlays
-        overlays = driver.find_elements("css selector", 'div[class^="QSIWebResponsive-creative-container"]')
-        for overlay in overlays:
-            if overlay.is_displayed():
-                # Try to find the close button inside the overlay
-                try:
-                    close_btn = overlay.find_element("css selector", 'div[role="button"], button, .QSIWebResponsiveDialog-Icon')
-                    # Try by aria-label
-                    if close_btn.is_displayed() and (
-                        close_btn.get_attribute("aria-label") in ("Close", "close") or
-                        close_btn.text.strip() in ("✕", "X", "Close")
-                    ):
-                        close_btn.click()
-                        print("Qualtrics survey closed (X button).")
-                        time.sleep(1)
-                        return
-                except Exception:
-                    # Fallback: click any close-looking button in overlay
-                    buttons = overlay.find_elements("css selector", 'div[role="button"], button')
-                    for btn in buttons:
-                        if btn.is_displayed() and (
-                            "close" in btn.get_attribute("class").lower() or
-                            btn.text.strip() in ("✕", "X", "Close")
-                        ):
-                            btn.click()
-                            print("Qualtrics survey closed (fallback).")
-                            time.sleep(1)
-                            return
-                # If can't find, hide overlay as fallback
-                driver.execute_script("arguments[0].style.display = 'none';", overlay)
-                print("Qualtrics overlay hidden as fallback.")
-    except selenium.common.exceptions.NoSuchElementException:
-        pass
-    except Exception as e:
-        print("Error handling Qualtrics survey overlay:", e)
-
-
-
-def load_all_items_with_more_button(driver, max_clicks=100):
-
-    clicks = 0
-    while clicks < max_clicks:
-        try:
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(1)
-
-            # Count current recipe cards
-            prev_count = len(driver.find_elements(By.CSS_SELECTOR, "div.card--recipe"))
-
-            # Find and click "More"
-            buttons = driver.find_elements(By.CSS_SELECTOR, "div.views-pagination ul > li > a")
-            more_found = False
-            for button in buttons:
-                if button.is_displayed() and button.text.strip().lower() == "more":
-                    driver.execute_script("arguments[0].scrollIntoView(true);", button)
-                    time.sleep(0.5)
-                    close_survey_iframe(driver)
-                    close_qualtrics_survey(driver)
-                    button.click()
-                    clicks += 1
-                    more_found = True
-                    print(f"Clicked More button ({clicks})")
-                    break
-
-            if not more_found:
-                print("No More button found in pagination.")
-                break
-
-            # Wait for new cards to load
-            for _ in range(30):
-                time.sleep(1)
-                new_count = len(driver.find_elements(By.CSS_SELECTOR, "div.card--recipe"))
-                if new_count > prev_count:
-                    break
-
-        except (TimeoutException, StaleElementReferenceException) as e:
-            print(f"No More button found or not clickable: {e}")
-            break
-
-def load_all_items_with_more_button_articles(driver, max_clicks=100):
-
-    clicks = 0
-    while clicks < max_clicks:
-        try:
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(1)
-
-            # Count current article cards
-            prev_count = len(driver.find_elements(By.CSS_SELECTOR, "div.card--article"))
-
-            # Find and click "More" (articles)
-            buttons = driver.find_elements(By.CSS_SELECTOR, "body > div.dialog-off-canvas-main-canvas > main > div > div.views-element-container > div > ul > li > a")
-            more_found = False
-            for button in buttons:
-                if button.is_displayed() and button.text.strip().lower() == "more":
-                    driver.execute_script("arguments[0].scrollIntoView(true);", button)
-                    time.sleep(0.5)
-                    close_survey_iframe(driver)
-                    close_qualtrics_survey(driver)
-                    button.click()
-                    clicks += 1
-                    more_found = True
-                    print(f"Clicked More button ({clicks})")
-                    break
-
-            if not more_found:
-                print("No More button found in pagination (articles).")
-                break
-
-            # Wait for new articles to load
-            for _ in range(30):
-                time.sleep(1)
-                new_count = len(driver.find_elements(By.CSS_SELECTOR, "div.card--article"))
-                if new_count > prev_count:
-                    break
-
-        except (TimeoutException, StaleElementReferenceException) as e:
-            print(f"No More button found or not clickable (articles): {e}")
-            break
-
-
-
-def get_recipe_links(driver):
-    # Go to the recipe page and load all recipes
-    driver.get(RECIPE_START_URL)
-    dismiss_cookies(driver)
-    load_all_items_with_more_button(driver)
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    links = set()
-    for a in soup.find_all("a", href=True):
-        href = a["href"]
-        if href.startswith("/recipe/"):
-            href = BASE_URL + href
-            links.add(href)
-        elif href.startswith(BASE_URL + "/recipe/"):
-            links.add(href)
-    return list(links)
-
-def get_article_links(driver):
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    links = set()
-    for a in soup.find_all("a", href=True):
-        href = a["href"]
-        if "/blog/" in href or "/news/" in href:
-            if href.startswith("/"):
-                href = BASE_URL + href
-            links.add(href)
-    return list(links)
-
 
 def extract_recipe_content(driver, url):
     driver.get(url)
+    dismiss_cookies(driver)
     time.sleep(3)
     soup = BeautifulSoup(driver.page_source, "html.parser")
     title = soup.find("h1").text.strip() if soup.find("h1") else ""
@@ -283,6 +101,7 @@ def extract_recipe_content(driver, url):
 
 def extract_article_content(driver, url):
     driver.get(url)
+    dismiss_cookies(driver)
     time.sleep(2)
     soup = BeautifulSoup(driver.page_source, "html.parser")
     title = soup.find("h1").text.strip() if soup.find("h1") else ""
@@ -307,6 +126,170 @@ def extract_article_content(driver, url):
         "content": body
     }
 
+# def extract_product_content(driver, url):
+#     # Leave this as a stub for now
+#     # You will add actual scraping logic here later
+#     driver.get(url)
+#     time.sleep(2)
+#     return {
+#         "url": url,
+#         "type": "product",
+#         "title": "",
+#         "content": ""
+#     }
+
+def safe_click(driver, element, timeout=5):
+    try:
+        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", element)
+        WebDriverWait(driver, timeout).until(EC.element_to_be_clickable(element))
+        element.click()
+        return True
+    except Exception:
+        try:
+            driver.execute_script("arguments[0].click();", element)
+            return True
+        except Exception:
+            return False
+
+def extract_product_content(driver, url):
+    driver.get(url)
+    time.sleep(2)
+    dismiss_cookies(driver)
+    result = {"url": url, "type": "product", "title": "", "content": ""}
+
+    # Title
+    try:
+        h1 = WebDriverWait(driver, 5).until(
+            EC.visibility_of_element_located((By.XPATH, "//h1"))
+        )
+        result["title"] = h1.text.strip()
+        print(f"Title: {result['title']}")
+    except se.TimeoutException:
+        print(f"[{url}] No title found")
+        result["title"] = ""
+
+    # Description
+    description = ""
+    try:
+        desc_elem = driver.find_element(By.CSS_SELECTOR, "div.field.field--name-field-description")
+        description = desc_elem.text.strip()
+    except Exception:
+        # Fallback: get first <p> after title in same container
+        try:
+            desc_elem = driver.find_element(By.XPATH, "//h1/../following-sibling::div//p[1]")
+            description = desc_elem.text.strip()
+        except Exception:
+            description = ""
+    print(f"Description: {description}")
+
+    # Features & Benefits (tab is open by default)
+    features = []
+    try:
+        features_list = driver.find_elements(
+            By.XPATH,
+            "//h2[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'feature')]/following-sibling::ul[1]/li"
+        )
+        features = [li.text.strip() for li in features_list if li.text.strip()]
+        print(f"Features: {features}")
+    except Exception:
+        features = []
+
+    # Nutrition tab (must be clicked)
+    nutrition_rows = []
+    try:
+        nutrition_tab = driver.find_element(By.XPATH, "//a[contains(@href, '#') and contains(., 'Nutrition')]")
+        safe_click(driver, nutrition_tab)
+        print("Clicked Nutrition tab")
+        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", nutrition_tab)
+        WebDriverWait(driver, 5).until(
+            EC.visibility_of_element_located(
+                (By.XPATH,
+                 "//h2[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'nutrition')]")
+            )
+        )
+        time.sleep(2)
+        # Try to find all rows by searching all relevant divs under the main nutrition container
+        nutrition_panel = driver.find_element(By.XPATH, "//div[contains(@class, 'nutrients-container')]")
+        row_candidates = nutrition_panel.find_elements(By.XPATH, ".//div[contains(@class,'coh-row-inner')]")
+        for row in row_candidates:
+            columns = row.find_elements(By.XPATH, ".//div[contains(@class, 'views-field')]")
+            if not columns:
+                columns = row.find_elements(By.XPATH, "./div")
+            row_texts = [col.text.strip() for col in columns if col.text.strip()]
+            if len(row_texts) == 1:  # Some rows are just a header
+                nutrition_rows.append([row_texts[0], "", ""])
+            elif len(row_texts) == 2:
+                nutrition_rows.append([row_texts[0], row_texts[1], ""])
+            elif len(row_texts) >= 3:
+                nutrition_rows.append(row_texts[:3])
+    except Exception as e:
+        print(f"Could not parse nutrition info: {e}")
+    print(f"Nutrition: {nutrition_rows}")
+
+    # Ingredients
+    try:
+        ingredients_tab = driver.find_element(By.XPATH, "//a[contains(@href, '#') and contains(., 'Ingredients')]")
+        safe_click(driver, ingredients_tab)
+        WebDriverWait(driver, 4).until(
+            EC.visibility_of_element_located(
+                (By.XPATH,
+                 "//h2[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ingredients')]")
+            )
+        )
+        time.sleep(2)
+    except Exception:
+        print("Ingredients tab click failed")
+
+    # After clicking the Ingredients tab and waiting for it to load
+    try:
+        # 1. Find the Ingredients heading
+        ingredients_h2 = driver.find_element(
+            By.XPATH,
+            "//h2[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ingredients')]"
+        )
+        # 2. Find the *first* following sibling that's a container for ingredients (could be div/span)
+        # This will grab div/span containers that hold the ingredient text
+        sibling = ingredients_h2.find_element(By.XPATH, "following-sibling::*[1]")
+        # 3. Gather all text from all elements under this sibling
+        blocks = sibling.find_elements(By.XPATH, ".//*")
+        texts = []
+        if sibling.text.strip():
+            texts.append(sibling.text.strip())
+        for block in blocks:
+            text = block.text.strip()
+            if text and text not in texts:
+                texts.append(text)
+        ingredients = "\n".join(texts)
+    except Exception:
+        ingredients = ""
+
+    print(f"Ingredients: {ingredients}")
+
+    # Build "content" text (matches your recipes/articles logic)
+    content_parts = []
+
+    if description:
+        content_parts.append(description)
+
+    if features:
+        content_parts.append("Features and Benefits:\n" + "\n".join(f"- {f}" for f in features))
+
+    if nutrition_rows:
+        nutrition_text = ["Nutrition Information:"]
+        for row in nutrition_rows:
+            # row is [label, amount, percent] (percent may be empty)
+            if len(row) == 3 and row[2]:
+                nutrition_text.append(f"{row[0]}: {row[1]} ({row[2]})")
+            else:
+                nutrition_text.append(f"{row[0]}: {row[1]}")
+        content_parts.append("\n".join(nutrition_text))
+
+    if ingredients:
+        content_parts.append("Ingredients:\n" + ingredients)
+
+    result["content"] = "\n\n".join(content_parts)
+    return result
+
 def main():
     options = Options()
     options.add_argument("--headless")
@@ -315,46 +298,55 @@ def main():
     options.add_argument("user-agent=Mozilla/5.0")
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
-    # --- Recipes ---
-    print("Loading recipes page and dismissing cookies...")
-    driver.get(RECIPE_START_URL)
-    dismiss_cookies(driver)
-    load_all_items_with_more_button(driver)
-    recipe_links = get_recipe_links(driver)
-    print(f"Found {len(recipe_links)} recipes")
+    # Load url lists
+    with open(REC_ART_URLS_PATH, "r", encoding="utf-8") as f:
+        url_data = json.load(f)
+    with open(BRAND_PROD_URLS_PATH, "r", encoding="utf-8") as f:
+        brand_products = json.load(f)
 
-    # --- Articles ---
-    print("Loading articles page and dismissing cookies...")
-    driver.get(ARTICLE_START_URL)
-    dismiss_cookies(driver)
-    load_all_items_with_more_button_articles(driver)
-    article_links = get_article_links(driver)
-    print(f"Found {len(article_links)} articles")
+    recipe_urls = url_data.get("recipes", [])
+    article_urls = url_data.get("articles", [])
+    product_urls = []
+    for entry in brand_products:
+        product_urls.extend(entry.get("products", []))
+    product_urls = list(set(product_urls))  # deduplicate
 
-    data = []
+    all_data = []
 
-    # --- Scrape recipes ---
-    for i, url in enumerate(recipe_links):
-        print(f"[Recipe {i+1}/{len(recipe_links)}] {url}")
+    # Scrape products
+    for i, url in enumerate(product_urls):
+        print(f"[Product {i+1}/{len(product_urls)}] {url}")
         try:
-            data.append(extract_recipe_content(driver, url))
+            product = extract_product_content(driver, url)
+            print(product)
+            all_data.append(product)
         except Exception as e:
-            print(f"Failed to scrape {url}: {e}")
+            print(f"Failed to scrape product {url}: {e}")
 
-    # --- Scrape articles ---
-    for i, url in enumerate(article_links):
-        print(f"[Article {i+1}/{len(article_links)}] {url}")
+    # Scrape recipes
+    for i, url in enumerate(recipe_urls):
+        print(f"[Recipe {i+1}/{len(recipe_urls)}] {url}")
         try:
-            data.append(extract_article_content(driver, url))
+            all_data.append(extract_recipe_content(driver, url))
         except Exception as e:
-            print(f"Failed to scrape {url}: {e}")
+            print(f"Failed to scrape recipe {url}: {e}")
+
+    # Scrape articles
+    for i, url in enumerate(article_urls):
+        print(f"[Article {i+1}/{len(article_urls)}] {url}")
+        try:
+            all_data.append(extract_article_content(driver, url))
+        except Exception as e:
+            print(f"Failed to scrape article {url}: {e}")
 
     driver.quit()
 
-    # --- Save data ---
-    with open("../data/raw_pages/processed.json", "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
+    # Save all data
+    out_path = Path(OUTPUT_PATH)
+    out_path.parent.mkdir(exist_ok=True)
+    with out_path.open("w", encoding="utf-8") as f:
+        json.dump(all_data, f, ensure_ascii=False, indent=2)
+    print(f"\nSaved {len(all_data)} records to {out_path.resolve()}")
 
 if __name__ == "__main__":
     main()

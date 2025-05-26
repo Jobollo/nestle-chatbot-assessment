@@ -7,14 +7,17 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai.api_key = OPENAI_API_KEY
 
 def ask_openai_with_context(user_question, context_chunks):
-    context_string = ''.join(f'- {chunk}\n' for chunk in context_chunks)
+    context_string = ''.join(
+        f"- Title: {chunk['title']}\n  URL: {chunk['url']}\n  Content: {chunk['content']}\n\n"
+        for chunk in context_chunks
+    )
 
     system_prompt = (
-        "You are an AI assistant for the Made with Nestlé Canada website (https://www.madewithnestle.ca/). "
-        "Your task is to answer user questions using only the information provided in the context below, "
-        "which comes from the official site. When possible, include specific recipe names or article titles "
-        "and provide the relevant website URL as a reference in your answer. "
-        "If the answer cannot be found in the context, try to clarify what the user is asking or looking for.\n\n"
+        "You are an AI assistant for the Made with Nestlé Canada website. Answer user "
+        "questions using only the information from the context below. Each context includes a "
+        "title and a URL. When referencing a specific answer, always cite the corresponding URL "
+        "from the context. If you cannot find the answer in the context, reply: 'The information "
+        "you requested was not found in the current Made with Nestlé Canada website content.'\n\n"
         f"Context:\n{context_string}\n"
         "Be concise, accurate, and reference the original content where appropriate."
     )

@@ -7,7 +7,7 @@ PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_HOST = os.getenv("PINECONE_HOST")
 PINECONE_NAMESPACE = "default"
 
-def query_pinecone(question, top_k=3):
+def query_pinecone(question, top_k=5):
     pc = Pinecone(api_key=PINECONE_API_KEY)
     index = pc.Index(host=PINECONE_HOST)
 
@@ -21,6 +21,16 @@ def query_pinecone(question, top_k=3):
     )
 
     hits = results['result']['hits']
-    # Extract the chunk text (replace 'content' if your field is named differently)
-    context_chunks = [hit['fields']['content'] for hit in hits if 'content' in hit['fields']]
+    # Build a list of dicts with all relevant fields
+    context_chunks = []
+    for hit in hits:
+        fields = hit.get('fields', {})
+        # Only add if content exists
+        if 'content' in fields and fields['content'].strip():
+            chunk = {
+                "title": fields.get("title", ""),
+                "url": fields.get("url", ""),
+                "content": fields["content"]
+            }
+            context_chunks.append(chunk)
     return context_chunks
