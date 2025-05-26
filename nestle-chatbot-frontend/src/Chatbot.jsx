@@ -233,7 +233,7 @@ export default function Chatbot() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              disabled={loading}
+              readOnly={loading}
               placeholder="Ask a question..."
               autoFocus
             />
