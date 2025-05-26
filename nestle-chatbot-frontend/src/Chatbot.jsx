@@ -1,4 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
+
+function renderWithLinks(text) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  return text.split(urlRegex).map((part, i) =>
+    urlRegex.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ color: "#459cff", textDecoration: "underline" }}
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    )
+  );
+}
 
 export default function Chatbot() {
   const [open, setOpen] = useState(false);
@@ -6,6 +25,15 @@ export default function Chatbot() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const textareaRef = useRef(null);
+
+  // Optional: auto-grow textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 96) + "px";
+    }
+  }, [input]);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -32,6 +60,14 @@ export default function Chatbot() {
       setError("Failed to fetch");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Allow Enter to send, Shift+Enter for newline
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
   };
 
@@ -136,10 +172,11 @@ export default function Chatbot() {
                     padding: "8px 14px",
                     borderRadius: 16,
                     background: m.sender === "user" ? "#ddeafc" : "#eaeaea",
-                    whiteSpace: "pre-line"
+                    whiteSpace: "pre-line",
+                    wordBreak: "break-word",
                   }}
                 >
-                  {m.text}
+                  {m.sender === "bot" ? renderWithLinks(m.text) : m.text}
                 </span>
               </div>
             ))}
@@ -165,7 +202,8 @@ export default function Chatbot() {
               alignItems: "center",
             }}
           >
-            <input
+            <textarea
+              ref={textareaRef}
               style={{
                 flex: 1,
                 padding: 8,
@@ -174,12 +212,15 @@ export default function Chatbot() {
                 outline: "none",
                 marginRight: 6,
                 fontSize: 15,
+                resize: "none",
+                minHeight: 32,
+                maxHeight: 96,
+                overflowY: "auto",
+                lineHeight: 1.4,
               }}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSend();
-              }}
+              onKeyDown={handleKeyDown}
               disabled={loading}
               placeholder="Ask a question..."
               autoFocus
