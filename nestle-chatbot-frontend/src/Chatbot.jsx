@@ -51,6 +51,7 @@ export default function Chatbot() {
     const userMsg = { sender: "user", text: input };
     setMessages((msgs) => [...msgs, userMsg]);
     setInput("");
+    if (textareaRef.current) textareaRef.current.focus();
     setLoading(true);
 
     try {
