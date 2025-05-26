@@ -2,22 +2,29 @@ import React, { useState, useRef, useEffect } from "react";
 
 function renderWithLinks(text) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
-  return text.split(urlRegex).map((part, i) =>
-    urlRegex.test(part) ? (
-      <a
-        key={i}
-        href={part}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{ color: "#459cff", textDecoration: "underline" }}
-      >
-        {part}
-      </a>
-    ) : (
-      part
-    )
-  );
+  return text.split(urlRegex).map((part, i) => {
+    if (urlRegex.test(part)) {
+      const cleanUrl = part.replace(/[.,!?)]*$/, "");
+      const trailing = part.slice(cleanUrl.length);
+      return (
+        <React.Fragment key={i}>
+          <a
+            href={cleanUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "#459cff", textDecoration: "underline" }}
+          >
+            {cleanUrl}
+          </a>
+          {trailing}
+        </React.Fragment>
+      );
+    } else {
+      return part;
+    }
+  });
 }
+
 
 export default function Chatbot() {
   const [open, setOpen] = useState(false);
