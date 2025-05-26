@@ -126,18 +126,6 @@ def extract_article_content(driver, url):
         "content": body
     }
 
-# def extract_product_content(driver, url):
-#     # Leave this as a stub for now
-#     # You will add actual scraping logic here later
-#     driver.get(url)
-#     time.sleep(2)
-#     return {
-#         "url": url,
-#         "type": "product",
-#         "title": "",
-#         "content": ""
-#     }
-
 def safe_click(driver, element, timeout=5):
     try:
         driver.execute_script("arguments[0].scrollIntoView({block:'center'});", element)
@@ -169,7 +157,6 @@ def extract_product_content(driver, url):
         result["title"] = ""
 
     # Description
-    description = ""
     try:
         desc_elem = driver.find_element(By.CSS_SELECTOR, "div.field.field--name-field-description")
         description = desc_elem.text.strip()

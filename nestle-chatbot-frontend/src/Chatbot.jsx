@@ -27,6 +27,16 @@ export default function Chatbot() {
   const [error, setError] = useState("");
   const textareaRef = useRef(null);
 
+  // Ref for auto-scrolling
+  const messagesEndRef = useRef(null);
+
+  // Auto-scroll to bottom when messages or loading changes
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, loading]);
+
   // Optional: auto-grow textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -192,6 +202,7 @@ export default function Chatbot() {
                 {error}
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
           <div
             style={{

@@ -170,7 +170,7 @@ def expand_grid(driver, pause=0.7, max_rounds=25):
             "arguments[0].scrollIntoView({block:'center'});", pager)
         driver.execute_script("arguments[0].click();", pager)
 
-        # wait (≤ 10 s) until new rows appear
+        # wait (≤10s) until new rows appear
         t0 = time.time()
         while time.time() - t0 < 10:
             rows_after = len(
@@ -246,7 +246,7 @@ def get_product_links_from_brand(driver, brand_url):
 
 
 options = Options()
-#options.add_argument("--headless")
+options.add_argument("--headless")
 options.add_argument("--disable-gpu")
 options.add_argument("--window-size=1920,1080")
 options.add_argument("user-agent=Mozilla/5.0")
