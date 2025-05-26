@@ -63,6 +63,7 @@ export default function Chatbot() {
 
     try {
       const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:8000";
+      console.log("API URL:", apiUrl); // add this for debugging
       const res = await fetch(`${apiUrl}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
