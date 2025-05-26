@@ -43,7 +43,6 @@ jobs:
           app_location: "./nestle-chatbot-frontend"
           output_location: "build"
           api_location: ""
-          skip_app_build: true
 
 
   close_pull_request_job:
