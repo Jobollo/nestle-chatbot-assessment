@@ -62,11 +62,13 @@ export default function Chatbot() {
     setLoading(true);
 
     try {
-      const res = await fetch("https://nestle-bot-backend-123.azurewebsites.net/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: userMsg.text }),
+      const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:8000";
+      const res = await fetch(`${apiUrl}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: userMsg.text }),
       });
+
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       setMessages((msgs) => [...msgs, { sender: "bot", text: data.answer }]);
