@@ -166,7 +166,8 @@ This project implements an AI-powered chatbot for the [Made with Nestlé Canada 
 
 ## Future Enhancements
 
-- Integrate a graph database (e.g., Neo4j, Cosmos DB) for GraphRAG-based retrieval.
+- Add integration with a graph database (Azure Cosmos DB with Gremlin API) to enable advanced, structured queries
+(e.g., "Which products contain hazelnuts?" or "List all recipes using SMARTIES"). The design for this graph module and potential LLM integration is provided in [docs/GRAPHDB.md](docs/GRAPHDB.md).
 - Expand scraping coverage to all potential content types.
 - Improve the chatbot UI with additional features and mobile responsiveness.
 - Improve system prompt for security and higher accuracy
